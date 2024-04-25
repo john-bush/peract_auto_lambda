@@ -22,6 +22,39 @@ from agents import peract_bc
 from agents import arm
 from agents.baselines import bc_lang, vit_bc_lang
 
+from helpers.optim.auto_lambda import AutoLambda
+
+class CustomOfflineTrainRunner(OfflineTrainRunner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize AutoLambda with the agent, device, tasks, and priority tasks
+        self.auto_lambda = AutoLambda(self._agent, self._train_device, self.cfg.rlbench.tasks, pri_tasks=[0], weight_init=0.1)
+
+    def _step(self, i, sampled_batch):
+        # Overwrite or augment the _step to include AutoLambda steps
+
+        # Convert tensors to appropriate device
+        batch = {k: v.to(self._train_device) for k, v in sampled_batch.items() if isinstance(v, torch.Tensor)}
+
+        # Assuming there's a mechanism to fetch validation data for unrolled_backward
+        val_x, val_y = batch['train_x'], batch['train_y'] # TODO: self.get_validation_data()
+
+        # AutoLambda virtual step before the actual update
+        self.auto_lambda.virtual_step(batch['train_x'], batch['train_y'], 0.01, self.optimizer)
+
+        # Normal update step
+        update_dict = self._agent.update(i, batch)
+        loss = update_dict['total_losses'].item()
+
+        # AutoLambda unrolled backward after the actual update
+        self.auto_lambda.unrolled_backward(batch['train_x'], batch['train_y'], val_x, val_y, 0.01, self.optimizer)
+
+        return loss
+
+    def get_validation_data(self):
+        # You need to implement a method to fetch or generate validation data
+        # For example, it might involve sampling from a validation dataset or buffer
+        pass
 
 def run_seed(rank,
              cfg: DictConfig,
@@ -29,7 +62,8 @@ def run_seed(rank,
              cams,
              multi_task,
              seed,
-             world_size) -> None:
+             world_size,
+             use_auto_lambda=False) -> None:
     dist.init_process_group("gloo",
                             rank=rank,
                             world_size=world_size)
@@ -137,23 +171,45 @@ def run_seed(rank,
     weightsdir = os.path.join(cwd, 'seed%d' % seed, 'weights')
     logdir = os.path.join(cwd, 'seed%d' % seed)
 
-    train_runner = OfflineTrainRunner(
-        agent=agent,
-        wrapped_replay_buffer=wrapped_replay,
-        train_device=rank,
-        stat_accumulator=stat_accum,
-        iterations=cfg.framework.training_iterations,
-        logdir=logdir,
-        logging_level=cfg.framework.logging_level,
-        log_freq=cfg.framework.log_freq,
-        weightsdir=weightsdir,
-        num_weights_to_keep=cfg.framework.num_weights_to_keep,
-        save_freq=cfg.framework.save_freq,
-        tensorboard_logging=cfg.framework.tensorboard_logging,
-        csv_logging=cfg.framework.csv_logging,
-        load_existing_weights=cfg.framework.load_existing_weights,
-        rank=rank,
-        world_size=world_size)
+    if use_auto_lambda:
+        
+        train_runner = CustomOfflineTrainRunner(
+            agent=agent,
+            wrapped_replay_buffer=wrapped_replay,
+            train_device=rank,
+            stat_accumulator=stat_accum,
+            iterations=cfg.framework.training_iterations,
+            logdir=logdir,
+            logging_level=cfg.framework.logging_level,
+            log_freq=cfg.framework.log_freq,
+            weightsdir=weightsdir,
+            num_weights_to_keep=cfg.framework.num_weights_to_keep,
+            save_freq=cfg.framework.save_freq,
+            tensorboard_logging=cfg.framework.tensorboard_logging,
+            csv_logging=cfg.framework.csv_logging,
+            load_existing_weights=cfg.framework.load_existing_weights,
+            rank=rank,
+            world_size=world_size)
+
+    else:
+
+        train_runner = OfflineTrainRunner(
+            agent=agent,
+            wrapped_replay_buffer=wrapped_replay,
+            train_device=rank,
+            stat_accumulator=stat_accum,
+            iterations=cfg.framework.training_iterations,
+            logdir=logdir,
+            logging_level=cfg.framework.logging_level,
+            log_freq=cfg.framework.log_freq,
+            weightsdir=weightsdir,
+            num_weights_to_keep=cfg.framework.num_weights_to_keep,
+            save_freq=cfg.framework.save_freq,
+            tensorboard_logging=cfg.framework.tensorboard_logging,
+            csv_logging=cfg.framework.csv_logging,
+            load_existing_weights=cfg.framework.load_existing_weights,
+            rank=rank,
+            world_size=world_size)
 
     train_runner.start()
 

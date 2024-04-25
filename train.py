@@ -82,7 +82,8 @@ def main(cfg: DictConfig) -> None:
                        cfg.rlbench.cameras,
                        multi_task,
                        seed,
-                       world_size,),
+                       world_size,
+                       use_auto_lambda=True),
                  nprocs=world_size,
                  join=True)
 
