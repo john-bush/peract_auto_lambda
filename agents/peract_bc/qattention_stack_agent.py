@@ -112,5 +112,5 @@ class QAttentionStackAgent(Agent):
         for qa in self._qattention_agents:
             qa.save_weights(savedir)
 
-    def get_optimizer():
+    def get_optimizer(self):
         return self._qattention_agents[0].get_optimizer()
