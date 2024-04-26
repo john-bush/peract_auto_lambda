@@ -28,9 +28,13 @@ class CustomOfflineTrainRunner(OfflineTrainRunner):
     def __init__(self, tasks, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.auto_lambda = AutoLambda(self._agent, self._train_device, tasks, pri_tasks=[0], weight_init=0.1)
-        self.optimizer = self._agent.get_optimizer()
+        self.optimizer = None
 
     def _step(self, i, sampled_batch):
+        
+        if not self.optimizer:
+            self.optimizer = self._agent.get_optimizer()
+        
         # Convert tensors to appropriate device and prepare data
         batch = {k: v.to(self._train_device) for k, v in sampled_batch.items() if isinstance(v, torch.Tensor)}
 
