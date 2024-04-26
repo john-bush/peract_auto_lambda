@@ -669,3 +669,6 @@ class QAttentionPerActBCAgent(Agent):
     def save_weights(self, savedir: str):
         torch.save(
             self._q.state_dict(), os.path.join(savedir, '%s.pt' % self._name))
+
+    def get_optimizer():
+        return self._optimizer
