@@ -83,7 +83,7 @@ def main(cfg: DictConfig) -> None:
                        multi_task,
                        seed,
                        world_size,
-                       use_auto_lambda=True),
+                       True),
                  nprocs=world_size,
                  join=True)
 
