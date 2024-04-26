@@ -25,10 +25,10 @@ from agents.baselines import bc_lang, vit_bc_lang
 from helpers.optim.auto_lambda import AutoLambda
 
 class CustomOfflineTrainRunner(OfflineTrainRunner):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, tasks, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Initialize AutoLambda with the agent, device, tasks, and priority tasks
-        self.auto_lambda = AutoLambda(self._agent, self._train_device, self.cfg.rlbench.tasks, pri_tasks=[0], weight_init=0.1)
+        self.auto_lambda = AutoLambda(self._agent, self._train_device, tasks, pri_tasks=[0], weight_init=0.1)
 
     def _step(self, i, sampled_batch):
         # Overwrite or augment the _step to include AutoLambda steps
@@ -174,6 +174,7 @@ def run_seed(rank,
     if use_auto_lambda:
         
         train_runner = CustomOfflineTrainRunner(
+            tasks=cfg.rlbench.tasks,
             agent=agent,
             wrapped_replay_buffer=wrapped_replay,
             train_device=rank,
