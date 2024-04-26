@@ -28,6 +28,7 @@ class CustomOfflineTrainRunner(OfflineTrainRunner):
     def __init__(self, tasks, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.auto_lambda = AutoLambda(self._agent, self._train_device, tasks, pri_tasks=[0], weight_init=0.1)
+        self.optimizer = self._agent.get_optimizer()
 
     def _step(self, i, sampled_batch):
         # Convert tensors to appropriate device and prepare data
@@ -42,14 +43,14 @@ class CustomOfflineTrainRunner(OfflineTrainRunner):
         val_x, val_y = train_x, train_y #self.get_validation_data()
 
         # AutoLambda virtual step before the actual update
-        self.auto_lambda.virtual_step(train_x, train_y, 0.01, self._agent._optimizer)
+        self.auto_lambda.virtual_step(train_x, train_y, 0.01, self.optimizer)
 
         # Update model normally using the actual batch
         update_dict = self._agent.update(i, batch)
         loss = update_dict['total_losses'].item()
 
         # AutoLambda unrolled backward after the actual update
-        self.auto_lambda.unrolled_backward(train_x, train_y, val_x, val_y, 0.01, self._agent._optimizer)
+        self.auto_lambda.unrolled_backward(train_x, train_y, val_x, val_y, 0.01, self.optimizer)
 
         return loss
 
