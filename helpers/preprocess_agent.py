@@ -13,7 +13,10 @@ class PreprocessAgent(Agent):
                  norm_rgb: bool = True):
         self._pose_agent = pose_agent
         self._norm_rgb = norm_rgb
-
+    
+    def __call__(self, inputs):
+        return self.act(0, inputs, deterministic=True) 
+    
     def build(self, training: bool, device: torch.device = None):
         self._pose_agent.build(training, device)
 
