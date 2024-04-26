@@ -42,14 +42,14 @@ class CustomOfflineTrainRunner(OfflineTrainRunner):
         val_x, val_y = train_x, train_y #self.get_validation_data()
 
         # AutoLambda virtual step before the actual update
-        self.auto_lambda.virtual_step(train_x, train_y, 0.01, self.optimizer)
+        self.auto_lambda.virtual_step(train_x, train_y, 0.01, self._agent._optimizer)
 
         # Update model normally using the actual batch
         update_dict = self._agent.update(i, batch)
         loss = update_dict['total_losses'].item()
 
         # AutoLambda unrolled backward after the actual update
-        self.auto_lambda.unrolled_backward(train_x, train_y, val_x, val_y, 0.01, self.optimizer)
+        self.auto_lambda.unrolled_backward(train_x, train_y, val_x, val_y, 0.01, self._agent._optimizer)
 
         return loss
 
