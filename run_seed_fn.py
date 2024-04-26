@@ -27,34 +27,39 @@ from helpers.optim.auto_lambda import AutoLambda
 class CustomOfflineTrainRunner(OfflineTrainRunner):
     def __init__(self, tasks, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Initialize AutoLambda with the agent, device, tasks, and priority tasks
         self.auto_lambda = AutoLambda(self._agent, self._train_device, tasks, pri_tasks=[0], weight_init=0.1)
 
     def _step(self, i, sampled_batch):
-        # Overwrite or augment the _step to include AutoLambda steps
-
-        # Convert tensors to appropriate device
+        # Convert tensors to appropriate device and prepare data
         batch = {k: v.to(self._train_device) for k, v in sampled_batch.items() if isinstance(v, torch.Tensor)}
 
-        # Assuming there's a mechanism to fetch validation data for unrolled_backward
-        val_x, val_y = batch['train_x'], batch['train_y'] # TODO: self.get_validation_data()
+        # Example: Mapping actual data to expected 'train_x' and 'train_y'
+        # Let's assume 'front_rgb' and 'front_rgb_tp1' are your input and target
+        train_x = batch['front_rgb']
+        train_y = batch['front_rgb_tp1']
+
+        # Fetch validation data
+        val_x, val_y = train_x, train_y #self.get_validation_data()
 
         # AutoLambda virtual step before the actual update
-        self.auto_lambda.virtual_step(batch['train_x'], batch['train_y'], 0.01, self.optimizer)
+        self.auto_lambda.virtual_step(train_x, train_y, 0.01, self.optimizer)
 
-        # Normal update step
+        # Update model normally using the actual batch
         update_dict = self._agent.update(i, batch)
         loss = update_dict['total_losses'].item()
 
         # AutoLambda unrolled backward after the actual update
-        self.auto_lambda.unrolled_backward(batch['train_x'], batch['train_y'], val_x, val_y, 0.01, self.optimizer)
+        self.auto_lambda.unrolled_backward(train_x, train_y, val_x, val_y, 0.01, self.optimizer)
 
         return loss
 
     def get_validation_data(self):
-        # You need to implement a method to fetch or generate validation data
-        # For example, it might involve sampling from a validation dataset or buffer
         pass
+        # Placeholder
+        validation_data = self._wrapped_buffer.sample_validation_batch()
+        val_x = validation_data['front_rgb']
+        val_y = validation_data['front_rgb_tp1']
+        return val_x.to(self._train_device), val_y.to(self._train_device)
 
 def run_seed(rank,
              cfg: DictConfig,
