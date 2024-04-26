@@ -89,6 +89,8 @@ class PreprocessAgent(Agent):
     def save_weights(self, savedir: str):
         self._pose_agent.save_weights(savedir)
 
+    def get_optimizer():
+        return self._pose_agent.get_optimizer()
     def reset(self) -> None:
         self._pose_agent.reset()
 
